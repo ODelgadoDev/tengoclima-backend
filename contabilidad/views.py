@@ -6,12 +6,16 @@ from .serializers import (
     GastoSerializer
 )
 
+from usuarios.permissions import EsLecturaOAdministrador
+
 
 class CategoriaGastoViewSet(viewsets.ModelViewSet):
     queryset = CategoriaGasto.objects.all().order_by('nombre')
     serializer_class = CategoriaGastoSerializer
+    permission_classes = [EsLecturaOAdministrador]
 
 
 class GastoViewSet(viewsets.ModelViewSet):
     queryset = Gasto.objects.all().order_by('-fecha_gasto')
     serializer_class = GastoSerializer
+    permission_classes = [EsLecturaOAdministrador]

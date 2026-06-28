@@ -6,8 +6,11 @@ from cotizaciones.models import Cotizacion
 from proyectos.models import Proyecto
 from contabilidad.models import Gasto
 
+from usuarios.permissions import EsUsuarioActivo
+
 
 class DashboardResumenView(APIView):
+    permission_classes = [EsUsuarioActivo]
 
     def get(self, request):
         clientes = ClientePotencial.objects.count()
@@ -42,6 +45,7 @@ class DashboardResumenView(APIView):
 
 
 class DashboardFinanzasView(APIView):
+    permission_classes = [EsUsuarioActivo]
 
     def get(self, request):
         monto_cobrado = 0

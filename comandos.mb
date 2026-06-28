@@ -1,3 +1,8 @@
-venv\Scripts\activate  para entrar en modo venv
+venv\Scripts\activate - para entrar en modo venv
 usuario: orlando
 password: gearsofwar00240101
+
+
+http://127.0.0.1:8000/api/auth/login/
+
+token key

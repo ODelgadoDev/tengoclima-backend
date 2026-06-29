@@ -13,6 +13,28 @@ class PagoViewSet(viewsets.ModelViewSet):
     serializer_class = PagoSerializer
     permission_classes = [EsLecturaOAdministrador]
 
+    search_fields = [
+        'referencia',
+        'notas',
+        'cotizacion__codigo',
+        'cotizacion__descripcion',
+        'cotizacion__cliente__nombre_solicitante',
+        'cotizacion__cliente__empresa',
+    ]
+
+    filterset_fields = [
+        'cotizacion',
+        'metodo_pago',
+        'fecha_pago',
+    ]
+
+    ordering_fields = [
+        'monto',
+        'metodo_pago',
+        'fecha_pago',
+        'fecha_creacion',
+    ]
+
 
 class PorCobrarView(APIView):
     permission_classes = [EsUsuarioActivo]

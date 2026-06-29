@@ -14,6 +14,21 @@ class ConceptoCotizacionSerializer(serializers.ModelSerializer):
             'total',
         ]
 
+    def validate_descripcion(self, value):
+        if not value.strip():
+            raise serializers.ValidationError('La descripción del concepto es obligatoria.')
+        return value
+
+    def validate_cantidad(self, value):
+        if value <= 0:
+            raise serializers.ValidationError('La cantidad debe ser mayor a 0.')
+        return value
+
+    def validate_precio_unitario(self, value):
+        if value < 0:
+            raise serializers.ValidationError('El precio unitario no puede ser negativo.')
+        return value
+
 
 class CotizacionSerializer(serializers.ModelSerializer):
     conceptos = ConceptoCotizacionSerializer(many=True, read_only=True)
@@ -40,9 +55,7 @@ class CotizacionSerializer(serializers.ModelSerializer):
         read_only=True
     )
 
-    estado_cobranza = serializers.CharField(
-        read_only=True
-    )
+    estado_cobranza = serializers.CharField(read_only=True)
 
     class Meta:
         model = Cotizacion
@@ -55,18 +68,24 @@ class CotizacionSerializer(serializers.ModelSerializer):
             'descripcion',
             'tipo',
             'estimado_tiempo',
-
             'subtotal',
             'iva',
             'total',
-
             'total_pagado',
             'saldo_pendiente',
             'estado_cobranza',
-
             'estado',
             'fecha_creacion',
             'fecha_actualizacion',
-
             'conceptos',
         ]
+
+    def validate_codigo(self, value):
+        if not value.strip():
+            raise serializers.ValidationError('El código de la cotización es obligatorio.')
+        return value.upper()
+
+    def validate_descripcion(self, value):
+        if not value.strip():
+            raise serializers.ValidationError('La descripción de la cotización es obligatoria.')
+        return value

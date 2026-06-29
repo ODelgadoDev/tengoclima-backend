@@ -14,8 +14,44 @@ class CategoriaGastoViewSet(viewsets.ModelViewSet):
     serializer_class = CategoriaGastoSerializer
     permission_classes = [EsLecturaOAdministrador]
 
+    search_fields = [
+        'nombre',
+        'descripcion',
+    ]
+
+    filterset_fields = [
+        'activo',
+    ]
+
+    ordering_fields = [
+        'nombre',
+        'activo',
+    ]
+
 
 class GastoViewSet(viewsets.ModelViewSet):
     queryset = Gasto.objects.all().order_by('-fecha_gasto')
     serializer_class = GastoSerializer
     permission_classes = [EsLecturaOAdministrador]
+
+    search_fields = [
+        'concepto',
+        'proveedor',
+        'notas',
+        'categoria__nombre',
+    ]
+
+    filterset_fields = [
+        'categoria',
+        'metodo_pago',
+        'fecha_gasto',
+    ]
+
+    ordering_fields = [
+        'concepto',
+        'proveedor',
+        'monto',
+        'metodo_pago',
+        'fecha_gasto',
+        'fecha_creacion',
+    ]

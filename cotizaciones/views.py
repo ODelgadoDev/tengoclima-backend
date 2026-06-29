@@ -10,8 +10,48 @@ class CotizacionViewSet(viewsets.ModelViewSet):
     serializer_class = CotizacionSerializer
     permission_classes = [EsLecturaOAdministrador]
 
+    search_fields = [
+        'codigo',
+        'descripcion',
+        'cliente__nombre_solicitante',
+        'cliente__empresa',
+    ]
+
+    filterset_fields = [
+        'estado',
+        'tipo',
+        'cliente',
+    ]
+
+    ordering_fields = [
+        'codigo',
+        'subtotal',
+        'iva',
+        'total',
+        'estado',
+        'fecha_creacion',
+        'fecha_actualizacion',
+    ]
+
 
 class ConceptoCotizacionViewSet(viewsets.ModelViewSet):
     queryset = ConceptoCotizacion.objects.all()
     serializer_class = ConceptoCotizacionSerializer
     permission_classes = [EsLecturaOAdministrador]
+
+    search_fields = [
+        'descripcion',
+        'cotizacion__codigo',
+    ]
+
+    filterset_fields = [
+        'cotizacion',
+        'unidad',
+    ]
+
+    ordering_fields = [
+        'descripcion',
+        'cantidad',
+        'precio_unitario',
+        'total',
+    ]

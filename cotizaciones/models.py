@@ -2,9 +2,10 @@ from decimal import Decimal
 
 from django.db import models
 from clientes.models import ClientePotencial
+from core.models import AuditableModel
 
 
-class Cotizacion(models.Model):
+class Cotizacion(AuditableModel):
     ESTADO_PENDIENTE = 'PENDIENTE'
     ESTADO_AUTORIZADA = 'AUTORIZADA'
     ESTADO_RECHAZADA = 'RECHAZADA'
@@ -39,9 +40,11 @@ class Cotizacion(models.Model):
     iva = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
-    estado = models.CharField(max_length=20, choices=ESTADOS, default=ESTADO_PENDIENTE)
-    fecha_creacion = models.DateTimeField(auto_now_add=True)
-    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    estado = models.CharField(
+        max_length=20,
+        choices=ESTADOS,
+        default=ESTADO_PENDIENTE
+    )
 
     def recalcular_totales(self):
         subtotal = sum(concepto.total for concepto in self.conceptos.all())

@@ -6,7 +6,12 @@ from usuarios.permissions import EsLecturaOAdministrador
 
 
 class CotizacionViewSet(viewsets.ModelViewSet):
-    queryset = Cotizacion.objects.all().order_by('-fecha_creacion')
+    queryset = (
+        Cotizacion.objects
+        .select_related('cliente')
+        .prefetch_related('conceptos', 'pagos')
+        .order_by('-fecha_creacion')
+    )
     serializer_class = CotizacionSerializer
     permission_classes = [EsLecturaOAdministrador]
 
@@ -35,7 +40,11 @@ class CotizacionViewSet(viewsets.ModelViewSet):
 
 
 class ConceptoCotizacionViewSet(viewsets.ModelViewSet):
-    queryset = ConceptoCotizacion.objects.all()
+    queryset = (
+        ConceptoCotizacion.objects
+        .select_related('cotizacion', 'cotizacion__cliente')
+        .order_by('id')
+    )
     serializer_class = ConceptoCotizacionSerializer
     permission_classes = [EsLecturaOAdministrador]
 

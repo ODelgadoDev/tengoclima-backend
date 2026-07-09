@@ -1,7 +1,9 @@
 from django.db import models
 
+from core.models import AuditableModel
 
-class ClientePotencial(models.Model):
+
+class ClientePotencial(AuditableModel):
     ESTADO_PENDIENTE = 'PENDIENTE'
     ESTADO_EN_TRAMITE = 'EN_TRAMITE'
     ESTADO_AUTORIZADO = 'AUTORIZADO'
@@ -19,9 +21,11 @@ class ClientePotencial(models.Model):
     telefono = models.CharField(max_length=20)
     direccion = models.TextField(blank=True, null=True)
     descripcion = models.TextField()
-    estado = models.CharField(max_length=20, choices=ESTADOS, default=ESTADO_PENDIENTE)
-    fecha_creacion = models.DateTimeField(auto_now_add=True)
-    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    estado = models.CharField(
+        max_length=20,
+        choices=ESTADOS,
+        default=ESTADO_PENDIENTE
+    )
 
     def __str__(self):
         return f"{self.nombre_solicitante} - {self.estado}"

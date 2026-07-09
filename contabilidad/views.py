@@ -30,7 +30,11 @@ class CategoriaGastoViewSet(viewsets.ModelViewSet):
 
 
 class GastoViewSet(viewsets.ModelViewSet):
-    queryset = Gasto.objects.all().order_by('-fecha_gasto')
+    queryset = (
+        Gasto.objects
+        .select_related('categoria')
+        .order_by('-fecha_gasto')
+    )
     serializer_class = GastoSerializer
     permission_classes = [EsLecturaOAdministrador]
 

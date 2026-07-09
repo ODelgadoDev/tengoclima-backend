@@ -1,11 +1,10 @@
-from rest_framework import viewsets
-
 from .models import ClientePotencial
 from .serializers import ClientePotencialSerializer
 from usuarios.permissions import EsLecturaOAdministrador
+from core.viewsets import BaseModelViewSet
 
 
-class ClientePotencialViewSet(viewsets.ModelViewSet):
+class ClientePotencialViewSet(BaseModelViewSet):
     queryset = ClientePotencial.objects.all().order_by('-fecha_creacion')
     serializer_class = ClientePotencialSerializer
     permission_classes = [EsLecturaOAdministrador]

@@ -6,7 +6,11 @@ from usuarios.permissions import EsLecturaOAdministrador
 
 
 class ProyectoViewSet(viewsets.ModelViewSet):
-    queryset = Proyecto.objects.all().order_by('-fecha_creacion')
+    queryset = (
+        Proyecto.objects
+        .select_related('cotizacion', 'cotizacion__cliente')
+        .order_by('-fecha_creacion')
+    )
     serializer_class = ProyectoSerializer
     permission_classes = [EsLecturaOAdministrador]
 

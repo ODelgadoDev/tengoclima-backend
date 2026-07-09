@@ -9,7 +9,11 @@ from usuarios.permissions import EsUsuarioActivo, EsLecturaOAdministrador
 
 
 class PagoViewSet(viewsets.ModelViewSet):
-    queryset = Pago.objects.all().order_by('-fecha_pago', '-fecha_creacion')
+    queryset = (
+        Pago.objects
+        .select_related('cotizacion', 'cotizacion__cliente')
+        .order_by('-fecha_pago', '-fecha_creacion')
+    )
     serializer_class = PagoSerializer
     permission_classes = [EsLecturaOAdministrador]
 
@@ -42,7 +46,14 @@ class PorCobrarView(APIView):
     def get(self, request):
         data = []
 
-        for cotizacion in Cotizacion.objects.all():
+        cotizaciones = (
+            Cotizacion.objects
+            .select_related('cliente')
+            .prefetch_related('pagos')
+            .order_by('-fecha_creacion')
+        )
+
+        for cotizacion in cotizaciones:
             if cotizacion.saldo_pendiente > 0:
                 data.append({
                     'id': cotizacion.id,
@@ -64,7 +75,14 @@ class PagadosView(APIView):
     def get(self, request):
         data = []
 
-        for cotizacion in Cotizacion.objects.all():
+        cotizaciones = (
+            Cotizacion.objects
+            .select_related('cliente')
+            .prefetch_related('pagos')
+            .order_by('-fecha_creacion')
+        )
+
+        for cotizacion in cotizaciones:
             if cotizacion.estado_cobranza == 'PAGADO':
                 data.append({
                     'id': cotizacion.id,

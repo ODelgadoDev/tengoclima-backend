@@ -1,11 +1,23 @@
 from django.utils import timezone
 from rest_framework import serializers
+
 from .models import Pago
+from core.serializers import AuditoriaSerializerMixin
 
 
 class PagoSerializer(serializers.ModelSerializer):
     cotizacion_codigo = serializers.CharField(
         source='cotizacion.codigo',
+        read_only=True
+    )
+
+    cliente_nombre = serializers.CharField(
+        source='cotizacion.cliente.nombre_solicitante',
+        read_only=True
+    )
+
+    cliente_empresa = serializers.CharField(
+        source='cotizacion.cliente.empresa',
         read_only=True
     )
 
@@ -15,12 +27,15 @@ class PagoSerializer(serializers.ModelSerializer):
             'id',
             'cotizacion',
             'cotizacion_codigo',
+            'cliente_nombre',
+            'cliente_empresa',
             'monto',
             'metodo_pago',
             'referencia',
             'notas',
             'fecha_pago',
             'fecha_creacion',
+            'fecha_actualizacion',
         ]
 
     def validate_monto(self, value):
@@ -48,3 +63,26 @@ class PagoSerializer(serializers.ModelSerializer):
             )
 
         return data
+
+
+class PagoDetalleSerializer(AuditoriaSerializerMixin, PagoSerializer):
+    class Meta(PagoSerializer.Meta):
+        fields = PagoSerializer.Meta.fields + [
+            'activo',
+            'eliminado',
+            'creado_por',
+            'creado_por_username',
+            'modificado_por',
+            'modificado_por_username',
+        ]
+
+        read_only_fields = [
+            'activo',
+            'eliminado',
+            'creado_por',
+            'creado_por_username',
+            'modificado_por',
+            'modificado_por_username',
+            'fecha_creacion',
+            'fecha_actualizacion',
+        ]

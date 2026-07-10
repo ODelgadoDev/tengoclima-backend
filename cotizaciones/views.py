@@ -1,11 +1,16 @@
 from rest_framework import viewsets
 
 from .models import Cotizacion, ConceptoCotizacion
-from .serializers import CotizacionSerializer, ConceptoCotizacionSerializer
+from .serializers import (
+    CotizacionSerializer,
+    CotizacionDetalleSerializer,
+    ConceptoCotizacionSerializer
+)
 from usuarios.permissions import EsLecturaOAdministrador
+from core.viewsets import BaseModelViewSet
 
 
-class CotizacionViewSet(viewsets.ModelViewSet):
+class CotizacionViewSet(BaseModelViewSet):
     queryset = (
         Cotizacion.objects
         .select_related('cliente')
@@ -14,6 +19,12 @@ class CotizacionViewSet(viewsets.ModelViewSet):
     )
     serializer_class = CotizacionSerializer
     permission_classes = [EsLecturaOAdministrador]
+
+    def get_serializer_class(self):
+        if self.action == 'retrieve':
+            return CotizacionDetalleSerializer
+
+        return CotizacionSerializer
 
     search_fields = [
         'codigo',

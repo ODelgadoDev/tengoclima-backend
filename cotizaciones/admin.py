@@ -1,7 +1,7 @@
-from decimal import Decimal
-
 from django.contrib import admin
+
 from .models import Cotizacion, ConceptoCotizacion
+from core.admin import AuditableAdmin
 
 
 class ConceptoCotizacionInline(admin.TabularInline):
@@ -11,7 +11,7 @@ class ConceptoCotizacionInline(admin.TabularInline):
 
 
 @admin.register(Cotizacion)
-class CotizacionAdmin(admin.ModelAdmin):
+class CotizacionAdmin(AuditableAdmin):
     list_display = (
         'codigo',
         'cliente',
@@ -20,32 +20,71 @@ class CotizacionAdmin(admin.ModelAdmin):
         'iva',
         'total',
         'estado',
-        'fecha_creacion',
     )
 
-    list_filter = ('estado', 'tipo', 'fecha_creacion')
+    list_filter = (
+        'estado',
+        'tipo',
+    )
 
     search_fields = (
         'codigo',
+        'descripcion',
         'cliente__nombre_solicitante',
         'cliente__empresa',
     )
 
-    fields = (
-        'cliente',
-        'codigo',
-        'descripcion',
-        'tipo',
-        'estimado_tiempo',
-        'estado',
+    readonly_fields = (
         'subtotal',
         'iva',
         'total',
     )
 
-    readonly_fields = ('subtotal', 'iva', 'total')
+    fieldsets = (
+        (
+            'Información de la cotización',
+            {
+                'fields': (
+                    'cliente',
+                    'codigo',
+                    'descripcion',
+                    'tipo',
+                    'estimado_tiempo',
+                    'estado',
+                )
+            },
+        ),
+        (
+            'Totales',
+            {
+                'fields': (
+                    'subtotal',
+                    'iva',
+                    'total',
+                )
+            },
+        ),
+        (
+            'Auditoría',
+            {
+                'classes': ('collapse',),
+                'fields': (
+                    'activo',
+                    'eliminado',
+                    'creado_por',
+                    'modificado_por',
+                    'fecha_creacion',
+                    'fecha_actualizacion',
+                ),
+            },
+        ),
+    )
 
     inlines = [ConceptoCotizacionInline]
+
+    ordering = (
+        '-fecha_creacion',
+    )
 
     def save_related(self, request, form, formsets, change):
         super().save_related(request, form, formsets, change)
@@ -63,11 +102,15 @@ class ConceptoCotizacionAdmin(admin.ModelAdmin):
         'total',
     )
 
-    list_filter = ('unidad',)
+    list_filter = (
+        'unidad',
+    )
 
     search_fields = (
         'descripcion',
         'cotizacion__codigo',
     )
 
-    readonly_fields = ('total',)
+    readonly_fields = (
+        'total',
+    )

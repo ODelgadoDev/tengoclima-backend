@@ -1,22 +1,32 @@
-from rest_framework import viewsets
-
 from .models import Proyecto
-from .serializers import ProyectoSerializer
+from .serializers import (
+    ProyectoSerializer,
+    ProyectoDetalleSerializer
+)
 from usuarios.permissions import EsLecturaOAdministrador
+from core.viewsets import BaseModelViewSet
 
 
-class ProyectoViewSet(viewsets.ModelViewSet):
+class ProyectoViewSet(BaseModelViewSet):
     queryset = (
         Proyecto.objects
-        .select_related('cotizacion', 'cotizacion__cliente')
+        .select_related('cotizacion', 'cotizacion__cliente', 'responsable')
         .order_by('-fecha_creacion')
     )
     serializer_class = ProyectoSerializer
     permission_classes = [EsLecturaOAdministrador]
 
+    def get_serializer_class(self):
+        if self.action == 'retrieve':
+            return ProyectoDetalleSerializer
+
+        return ProyectoSerializer
+
     search_fields = [
         'nombre',
-        'responsable',
+        'responsable__username',
+        'responsable__first_name',
+        'responsable__last_name',
         'notas',
         'cotizacion__codigo',
         'cotizacion__cliente__nombre_solicitante',

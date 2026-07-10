@@ -1,14 +1,14 @@
-from rest_framework import viewsets
 from rest_framework.views import APIView
 from rest_framework.response import Response
 
 from .models import Pago
-from .serializers import PagoSerializer
+from .serializers import PagoSerializer, PagoDetalleSerializer
 from cotizaciones.models import Cotizacion
 from usuarios.permissions import EsUsuarioActivo, EsLecturaOAdministrador
+from core.viewsets import BaseModelViewSet
 
 
-class PagoViewSet(viewsets.ModelViewSet):
+class PagoViewSet(BaseModelViewSet):
     queryset = (
         Pago.objects
         .select_related('cotizacion', 'cotizacion__cliente')
@@ -16,6 +16,12 @@ class PagoViewSet(viewsets.ModelViewSet):
     )
     serializer_class = PagoSerializer
     permission_classes = [EsLecturaOAdministrador]
+
+    def get_serializer_class(self):
+        if self.action == 'retrieve':
+            return PagoDetalleSerializer
+
+        return PagoSerializer
 
     search_fields = [
         'referencia',

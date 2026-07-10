@@ -3,10 +3,12 @@ from rest_framework import viewsets
 from .models import CategoriaGasto, Gasto
 from .serializers import (
     CategoriaGastoSerializer,
-    GastoSerializer
+    GastoSerializer,
+    GastoDetalleSerializer
 )
 
 from usuarios.permissions import EsLecturaOAdministrador
+from core.viewsets import BaseModelViewSet
 
 
 class CategoriaGastoViewSet(viewsets.ModelViewSet):
@@ -29,7 +31,7 @@ class CategoriaGastoViewSet(viewsets.ModelViewSet):
     ]
 
 
-class GastoViewSet(viewsets.ModelViewSet):
+class GastoViewSet(BaseModelViewSet):
     queryset = (
         Gasto.objects
         .select_related('categoria')
@@ -37,6 +39,12 @@ class GastoViewSet(viewsets.ModelViewSet):
     )
     serializer_class = GastoSerializer
     permission_classes = [EsLecturaOAdministrador]
+
+    def get_serializer_class(self):
+        if self.action == 'retrieve':
+            return GastoDetalleSerializer
+
+        return GastoSerializer
 
     search_fields = [
         'concepto',

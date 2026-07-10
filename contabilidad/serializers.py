@@ -1,6 +1,8 @@
 from django.utils import timezone
 from rest_framework import serializers
+
 from .models import CategoriaGasto, Gasto
+from core.serializers import AuditoriaSerializerMixin
 
 
 class CategoriaGastoSerializer(serializers.ModelSerializer):
@@ -34,6 +36,7 @@ class GastoSerializer(serializers.ModelSerializer):
             'notas',
             'fecha_gasto',
             'fecha_creacion',
+            'fecha_actualizacion',
         ]
 
     def validate_concepto(self, value):
@@ -50,3 +53,26 @@ class GastoSerializer(serializers.ModelSerializer):
         if value > timezone.localdate():
             raise serializers.ValidationError('La fecha del gasto no puede ser futura.')
         return value
+
+
+class GastoDetalleSerializer(AuditoriaSerializerMixin, GastoSerializer):
+    class Meta(GastoSerializer.Meta):
+        fields = GastoSerializer.Meta.fields + [
+            'activo',
+            'eliminado',
+            'creado_por',
+            'creado_por_username',
+            'modificado_por',
+            'modificado_por_username',
+        ]
+
+        read_only_fields = [
+            'activo',
+            'eliminado',
+            'creado_por',
+            'creado_por_username',
+            'modificado_por',
+            'modificado_por_username',
+            'fecha_creacion',
+            'fecha_actualizacion',
+        ]

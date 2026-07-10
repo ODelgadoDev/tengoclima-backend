@@ -1,5 +1,7 @@
 from rest_framework import serializers
+
 from .models import Cotizacion, ConceptoCotizacion
+from core.serializers import AuditoriaSerializerMixin
 
 
 class ConceptoCotizacionSerializer(serializers.ModelSerializer):
@@ -89,3 +91,26 @@ class CotizacionSerializer(serializers.ModelSerializer):
         if not value.strip():
             raise serializers.ValidationError('La descripción de la cotización es obligatoria.')
         return value
+
+
+class CotizacionDetalleSerializer(AuditoriaSerializerMixin, CotizacionSerializer):
+    class Meta(CotizacionSerializer.Meta):
+        fields = CotizacionSerializer.Meta.fields + [
+            'activo',
+            'eliminado',
+            'creado_por',
+            'creado_por_username',
+            'modificado_por',
+            'modificado_por_username',
+        ]
+
+        read_only_fields = [
+            'activo',
+            'eliminado',
+            'creado_por',
+            'creado_por_username',
+            'modificado_por',
+            'modificado_por_username',
+            'fecha_creacion',
+            'fecha_actualizacion',
+        ]

@@ -1,36 +1,23 @@
 from rest_framework import serializers
 
-from .models import ClientePotencial
+from .models import Evidencia
 from core.serializers import AuditoriaSerializerMixin
 
 
-class ClientePotencialSerializer(serializers.ModelSerializer):
+class EvidenciaSerializer(AuditoriaSerializerMixin):
+    cotizacion_codigo = serializers.CharField(
+        source='cotizacion.codigo',
+        read_only=True
+    )
+
     class Meta:
-        model = ClientePotencial
+        model = Evidencia
         fields = [
             'id',
-            'nombre_solicitante',
-            'empresa',
-            'telefono',
-            'direccion',
+            'cotizacion',
+            'cotizacion_codigo',
+            'imagen',
             'descripcion',
-            'estado',
-            'fecha_creacion',
-            'fecha_actualizacion',
-        ]
-
-
-class ClientePotencialDetalleSerializer(AuditoriaSerializerMixin):
-    class Meta:
-        model = ClientePotencial
-        fields = [
-            'id',
-            'nombre_solicitante',
-            'empresa',
-            'telefono',
-            'direccion',
-            'descripcion',
-            'estado',
 
             'activo',
             'eliminado',

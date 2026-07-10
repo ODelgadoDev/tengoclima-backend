@@ -1,9 +1,11 @@
 from django.db import models
 from django.contrib.auth.models import User
+
 from cotizaciones.models import Cotizacion
+from core.models import AuditableModel
 
 
-class Proyecto(models.Model):
+class Proyecto(AuditableModel):
     ESTADO_PENDIENTE = 'PENDIENTE'
     ESTADO_EN_PROCESO = 'EN_PROCESO'
     ESTADO_DETENIDO = 'DETENIDO'
@@ -27,6 +29,7 @@ class Proyecto(models.Model):
     )
 
     nombre = models.CharField(max_length=150)
+
     responsable = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -38,11 +41,13 @@ class Proyecto(models.Model):
     fecha_fin_estimada = models.DateField(blank=True, null=True)
     fecha_fin_real = models.DateField(blank=True, null=True)
 
-    estado = models.CharField(max_length=20, choices=ESTADOS, default=ESTADO_PENDIENTE)
-    notas = models.TextField(blank=True, null=True)
+    estado = models.CharField(
+        max_length=20,
+        choices=ESTADOS,
+        default=ESTADO_PENDIENTE
+    )
 
-    fecha_creacion = models.DateTimeField(auto_now_add=True)
-    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    notas = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.nombre} - {self.estado}"

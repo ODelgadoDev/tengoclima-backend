@@ -57,9 +57,32 @@ class AuditableModel(models.Model):
         abstract = True
 
     def delete(self, using=None, keep_parents=False):
+        """Eliminación lógica."""
         self.eliminado = True
         self.activo = False
-        self.save(update_fields=['eliminado', 'activo', 'fecha_actualizacion'])
+        self.save(
+            update_fields=[
+                'eliminado',
+                'activo',
+                'fecha_actualizacion',
+            ]
+        )
+
+    def restaurar(self):
+        """Restaura un registro eliminado lógicamente."""
+        self.eliminado = False
+        self.activo = True
+        self.save(
+            update_fields=[
+                'eliminado',
+                'activo',
+                'fecha_actualizacion',
+            ]
+        )
 
     def hard_delete(self, using=None, keep_parents=False):
-        super().delete(using=using, keep_parents=keep_parents)
+        """Eliminación definitiva de la base de datos."""
+        super().delete(
+            using=using,
+            keep_parents=keep_parents
+        )

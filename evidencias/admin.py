@@ -1,24 +1,18 @@
 from django.contrib import admin
 
 from .models import Evidencia
+from core.admin import AuditableAdmin
 
 
 @admin.register(Evidencia)
-class EvidenciaAdmin(admin.ModelAdmin):
+class EvidenciaAdmin(AuditableAdmin):
     list_display = (
         'id',
         'cotizacion',
         'descripcion',
-        'activo',
-        'eliminado',
-        'fecha_creacion',
     )
 
-    list_filter = (
-        'activo',
-        'eliminado',
-        'fecha_creacion',
-    )
+    list_filter = ()
 
     search_fields = (
         'descripcion',
@@ -27,9 +21,33 @@ class EvidenciaAdmin(admin.ModelAdmin):
         'cotizacion__cliente__empresa',
     )
 
-    readonly_fields = (
-        'creado_por',
-        'modificado_por',
-        'fecha_creacion',
-        'fecha_actualizacion',
+    ordering = (
+        '-fecha_creacion',
+    )
+
+    fieldsets = (
+        (
+            'Información de la evidencia',
+            {
+                'fields': (
+                    'cotizacion',
+                    'imagen',
+                    'descripcion',
+                )
+            },
+        ),
+        (
+            'Auditoría',
+            {
+                'classes': ('collapse',),
+                'fields': (
+                    'activo',
+                    'eliminado',
+                    'creado_por',
+                    'modificado_por',
+                    'fecha_creacion',
+                    'fecha_actualizacion',
+                ),
+            },
+        ),
     )

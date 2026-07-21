@@ -103,6 +103,7 @@ SPECTACULAR_SETTINGS = {
     'DESCRIPTION': 'API REST para el sistema de gestión administrativa, cotizaciones, proyectos, cobranza y contabilidad de TENGOCLIMA.',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
 }
 
 ROOT_URLCONF = 'config.urls'

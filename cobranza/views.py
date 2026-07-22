@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 
 from core.viewsets import BaseModelViewSet
 from cotizaciones.models import Cotizacion
+from usuarios.models import RegistroActividad
 from usuarios.permissions import EsLecturaOAdministrador, EsUsuarioActivo
 
 from .models import Pago
@@ -173,6 +174,11 @@ class PagoViewSet(BaseModelViewSet):
                 "modificado_por",
                 "fecha_actualizacion",
             ],
+        )
+
+        self.registrar_actividad(
+            RegistroActividad.ACCION_RESTAURAR,
+            instance,
         )
 
         return Response(

@@ -39,8 +39,8 @@ class DashboardResumenView(APIView):
             'cotizaciones_autorizadas': Cotizacion.objects.filter(
                 estado=Cotizacion.ESTADO_AUTORIZADA
             ).count(),
-            'cotizaciones_rechazadas': Cotizacion.objects.filter(
-                estado=Cotizacion.ESTADO_RECHAZADA
+            'cotizaciones_canceladas': Cotizacion.objects.filter(
+                estado=Cotizacion.ESTADO_CANCELADA
             ).count(),
         }
 

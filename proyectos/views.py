@@ -6,6 +6,7 @@ from rest_framework.response import Response
 
 from core.viewsets import BaseModelViewSet
 from cotizaciones.models import Cotizacion
+from usuarios.models import RegistroActividad
 from usuarios.permissions import EsLecturaOAdministrador
 
 from .models import Proyecto
@@ -240,6 +241,11 @@ class ProyectoViewSet(BaseModelViewSet):
                 "modificado_por",
                 "fecha_actualizacion",
             ],
+        )
+
+        self.registrar_actividad(
+            RegistroActividad.ACCION_RESTAURAR,
+            instance,
         )
 
         return Response(

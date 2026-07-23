@@ -15,6 +15,8 @@ class ConceptoCotizacionInline(admin.TabularInline):
         "cantidad",
         "precio_unitario",
         "total",
+        "estado_facturacion",
+        "estado_cobranza",
     )
     readonly_fields = ("total",)
 
@@ -37,7 +39,17 @@ class CotizacionAdmin(AuditableAdmin):
         "cliente__nombre_solicitante",
         "cliente__empresa",
     )
-    readonly_fields = ("subtotal", "iva", "total")
+    readonly_fields = (
+        "subtotal",
+        "iva",
+        "total",
+        "total_facturado",
+        "saldo_por_facturar",
+        "estado_facturacion",
+        "total_pagado",
+        "saldo_pendiente",
+        "estado_cobranza",
+    )
     inlines = [ConceptoCotizacionInline]
 
 

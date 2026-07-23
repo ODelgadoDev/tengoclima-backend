@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     'contabilidad',
     'evidencias',
     'dashboard',
+    'notificaciones.apps.NotificacionesConfig',
 ]
 
 MIDDLEWARE = [

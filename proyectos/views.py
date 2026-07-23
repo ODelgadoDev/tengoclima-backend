@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.db.models import Prefetch
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -13,26 +14,40 @@ from .models import Proyecto
 from .serializers import (
     ProyectoDetalleSerializer,
     ProyectoSerializer,
+    VincularCotizacionSerializer,
 )
 
 
-class ProyectoViewSet(BaseModelViewSet):
-    queryset = (
-        Proyecto.objects
-        .select_related(
-            "cotizacion",
-            "cotizacion__cliente",
-            "responsable",
-        )
+def cotizaciones_prefetch_queryset():
+    return (
+        Cotizacion.objects
+        .select_related("cliente", "proyecto")
+        .prefetch_related("pagos", "conceptos", "facturas")
         .order_by("-fecha_creacion")
     )
+
+
+class ProyectoViewSet(BaseModelViewSet):
+    queryset = Proyecto.objects.all()
     serializer_class = ProyectoSerializer
     permission_classes = [EsLecturaOAdministrador]
+
+    def get_queryset(self):
+        return (
+            super().get_queryset()
+            .select_related("cliente", "responsable")
+            .prefetch_related(
+                Prefetch(
+                    "cotizaciones",
+                    queryset=cotizaciones_prefetch_queryset(),
+                ),
+            )
+            .order_by("-fecha_creacion")
+        )
 
     def get_serializer_class(self):
         if self.action == "retrieve":
             return ProyectoDetalleSerializer
-
         return ProyectoSerializer
 
     search_fields = [
@@ -41,18 +56,22 @@ class ProyectoViewSet(BaseModelViewSet):
         "responsable__first_name",
         "responsable__last_name",
         "notas",
-        "cotizacion__codigo",
-        "cotizacion__cliente__nombre_solicitante",
-        "cotizacion__cliente__empresa",
+        "cliente__nombre_solicitante",
+        "cliente__empresa",
+        "cotizaciones__codigo",
+        "cotizaciones__descripcion",
+        "cotizaciones__conceptos__descripcion",
     ]
     filterset_fields = [
         "estado",
         "responsable",
-        "cotizacion",
+        "cliente",
+        "cotizaciones",
     ]
     ordering_fields = [
         "nombre",
         "responsable",
+        "cliente",
         "fecha_inicio",
         "fecha_fin_estimada",
         "fecha_fin_real",
@@ -61,197 +80,213 @@ class ProyectoViewSet(BaseModelViewSet):
         "fecha_actualizacion",
     ]
 
+    def _validar_cotizacion(self, cotizacion, proyecto):
+        if cotizacion.eliminado or not cotizacion.activo:
+            raise ValidationError(
+                {"cotizacion": "La cotización seleccionada no está activa."},
+            )
+        if cotizacion.estado != Cotizacion.ESTADO_AUTORIZADA:
+            raise ValidationError(
+                {"cotizacion": "Solo puedes vincular cotizaciones autorizadas."},
+            )
+        if cotizacion.cliente_id != proyecto.cliente_id:
+            raise ValidationError(
+                {
+                    "cotizacion": (
+                        "La cotización y el proyecto deben pertenecer al "
+                        "mismo cliente."
+                    ),
+                },
+            )
+        if cotizacion.proyecto_id is not None:
+            if cotizacion.proyecto_id == proyecto.pk:
+                raise ValidationError(
+                    {"cotizacion": "La cotización ya pertenece a este proyecto."},
+                )
+            raise ValidationError(
+                {"cotizacion": "La cotización ya pertenece a otro proyecto."},
+            )
+
+    def _registrar_vinculo(self, proyecto, cotizacion, antes, despues):
+        self.registrar_actividad(
+            RegistroActividad.ACCION_EDITAR,
+            cotizacion,
+            cambios={
+                "proyecto": {
+                    "antes": antes,
+                    "despues": despues,
+                },
+            },
+            descripcion=(
+                f"Cotización {cotizacion.codigo} vinculada al proyecto "
+                f"{proyecto.nombre}."
+                if despues is not None
+                else (
+                    f"Cotización {cotizacion.codigo} retirada del proyecto "
+                    f"{proyecto.nombre}."
+                )
+            ),
+        )
+        self.registrar_actividad(
+            RegistroActividad.ACCION_EDITAR,
+            proyecto,
+            cambios={
+                "cotizaciones": {
+                    "cotizacion": cotizacion.pk,
+                    "codigo": cotizacion.codigo,
+                    "accion": "AGREGAR" if despues is not None else "RETIRAR",
+                },
+            },
+        )
+
     @transaction.atomic
     def perform_create(self, serializer):
-        cotizacion_validada = serializer.validated_data["cotizacion"]
-
-        cotizacion = (
-            Cotizacion.all_objects
-            .select_for_update()
-            .get(pk=cotizacion_validada.pk)
-        )
-
-        proyecto_existente = (
-            Proyecto.all_objects
-            .select_for_update()
-            .filter(cotizacion_id=cotizacion.pk)
-            .first()
-        )
-
-        if proyecto_existente:
-            if proyecto_existente.eliminado:
-                raise ValidationError(
-                    {
-                        "cotizacion": (
-                            "Esta cotización ya pertenece a un proyecto "
-                            "eliminado. Restaura ese proyecto desde la "
-                            "papelera."
-                        ),
-                    },
-                )
-
-            raise ValidationError(
-                {
-                    "cotizacion": (
-                        "Esta cotización ya fue convertida en proyecto."
-                    ),
-                },
-            )
-
-        if (
-            cotizacion.eliminado
-            or not cotizacion.activo
-            or cotizacion.estado
-            != Cotizacion.ESTADO_AUTORIZADA
-        ):
-            raise ValidationError(
-                {
-                    "cotizacion": (
-                        "Solo una cotización activa y autorizada puede "
-                        "convertirse en proyecto."
-                    ),
-                },
-            )
-
-        serializer.save(
-            cotizacion=cotizacion,
+        proyecto = serializer.save(
             creado_por=self.request.user,
             modificado_por=self.request.user,
         )
-
-        cotizacion.estado = Cotizacion.ESTADO_CONVERTIDA
-        cotizacion.modificado_por = self.request.user
-        cotizacion.save(
-            update_fields=[
-                "estado",
-                "modificado_por",
-                "fecha_actualizacion",
-            ],
+        cotizaciones = getattr(
+            serializer,
+            "cotizaciones_para_vincular",
+            [],
         )
 
-    @transaction.atomic
-    def perform_destroy(self, instance):
-        cotizacion = (
-            Cotizacion.all_objects
-            .select_for_update()
-            .get(pk=instance.cotizacion_id)
-        )
-
-        super().perform_destroy(instance)
-
-        if cotizacion.estado == Cotizacion.ESTADO_CONVERTIDA:
-            cotizacion.estado = Cotizacion.ESTADO_AUTORIZADA
+        for seleccionada in cotizaciones:
+            cotizacion = (
+                Cotizacion.all_objects
+                .select_for_update()
+                .select_related("cliente", "proyecto")
+                .get(pk=seleccionada.pk)
+            )
+            self._validar_cotizacion(cotizacion, proyecto)
+            cotizacion.proyecto = proyecto
             cotizacion.modificado_por = self.request.user
             cotizacion.save(
                 update_fields=[
-                    "estado",
+                    "proyecto",
                     "modificado_por",
                     "fecha_actualizacion",
                 ],
+            )
+            self._registrar_vinculo(
+                proyecto,
+                cotizacion,
+                None,
+                proyecto.pk,
             )
 
     @action(
         detail=True,
         methods=["post"],
-        url_path="restaurar",
+        url_path="agregar-cotizacion",
     )
     @transaction.atomic
-    def restaurar(self, request, pk=None):
-        instance = self.get_object()
-
-        if not instance.eliminado:
-            return Response(
-                {
-                    "success": False,
-                    "message": "El registro no está eliminado.",
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
+    def agregar_cotizacion(self, request, pk=None):
+        proyecto = (
+            Proyecto.all_objects
+            .select_for_update()
+            .select_related("cliente")
+            .get(pk=self.get_object().pk)
+        )
+        payload = VincularCotizacionSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        seleccionada = payload.validated_data["cotizacion"]
         cotizacion = (
             Cotizacion.all_objects
             .select_for_update()
-            .get(pk=instance.cotizacion_id)
+            .select_related("cliente", "proyecto")
+            .get(pk=seleccionada.pk)
         )
+        self._validar_cotizacion(cotizacion, proyecto)
 
-        if cotizacion.eliminado or not cotizacion.activo:
-            return Response(
-                {
-                    "success": False,
-                    "message": (
-                        "No se puede restaurar el proyecto porque su "
-                        "cotización no está activa."
-                    ),
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        if cotizacion.estado != Cotizacion.ESTADO_AUTORIZADA:
-            return Response(
-                {
-                    "success": False,
-                    "message": (
-                        "La cotización debe estar autorizada antes de "
-                        "restaurar el proyecto."
-                    ),
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        otro_proyecto_activo = (
-            Proyecto.all_objects
-            .select_for_update()
-            .filter(
-                cotizacion_id=cotizacion.pk,
-                eliminado=False,
-            )
-            .exclude(pk=instance.pk)
-            .exists()
-        )
-
-        if otro_proyecto_activo:
-            return Response(
-                {
-                    "success": False,
-                    "message": (
-                        "La cotización ya pertenece a otro proyecto "
-                        "activo."
-                    ),
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        instance.eliminado = False
-        instance.activo = True
-        instance.modificado_por = request.user
-        instance.save(
-            update_fields=[
-                "eliminado",
-                "activo",
-                "modificado_por",
-                "fecha_actualizacion",
-            ],
-        )
-
-        cotizacion.estado = Cotizacion.ESTADO_CONVERTIDA
+        cotizacion.proyecto = proyecto
         cotizacion.modificado_por = request.user
         cotizacion.save(
             update_fields=[
-                "estado",
+                "proyecto",
                 "modificado_por",
                 "fecha_actualizacion",
             ],
         )
-
-        self.registrar_actividad(
-            RegistroActividad.ACCION_RESTAURAR,
-            instance,
+        self._registrar_vinculo(
+            proyecto,
+            cotizacion,
+            None,
+            proyecto.pk,
         )
 
+        actualizado = self.get_queryset().get(pk=proyecto.pk)
         return Response(
             {
                 "success": True,
-                "message": "Registro restaurado correctamente.",
+                "message": "Cotización agregada al proyecto correctamente.",
+                "proyecto": ProyectoDetalleSerializer(
+                    actualizado,
+                    context=self.get_serializer_context(),
+                ).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="retirar-cotizacion",
+    )
+    @transaction.atomic
+    def retirar_cotizacion(self, request, pk=None):
+        proyecto = (
+            Proyecto.all_objects
+            .select_for_update()
+            .get(pk=self.get_object().pk)
+        )
+        payload = VincularCotizacionSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        seleccionada = payload.validated_data["cotizacion"]
+        cotizacion = (
+            Cotizacion.all_objects
+            .select_for_update()
+            .filter(
+                pk=seleccionada.pk,
+                proyecto_id=proyecto.pk,
+            )
+            .first()
+        )
+
+        if cotizacion is None:
+            return Response(
+                {
+                    "success": False,
+                    "message": "La cotización no pertenece a este proyecto.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        cotizacion.proyecto = None
+        cotizacion.modificado_por = request.user
+        cotizacion.save(
+            update_fields=[
+                "proyecto",
+                "modificado_por",
+                "fecha_actualizacion",
+            ],
+        )
+        self._registrar_vinculo(
+            proyecto,
+            cotizacion,
+            proyecto.pk,
+            None,
+        )
+
+        actualizado = self.get_queryset().get(pk=proyecto.pk)
+        return Response(
+            {
+                "success": True,
+                "message": "Cotización retirada del proyecto correctamente.",
+                "proyecto": ProyectoDetalleSerializer(
+                    actualizado,
+                    context=self.get_serializer_context(),
+                ).data,
             },
             status=status.HTTP_200_OK,
         )

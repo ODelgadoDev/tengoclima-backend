@@ -1,86 +1,76 @@
 from django.contrib import admin
 
-from .models import CategoriaGasto, Gasto
 from core.admin import AuditableAdmin
+
+from .models import CategoriaGasto, Gasto
 
 
 @admin.register(CategoriaGasto)
 class CategoriaGastoAdmin(admin.ModelAdmin):
-    list_display = (
-        'nombre',
-        'activo',
-    )
-
-    list_filter = (
-        'activo',
-    )
-
-    search_fields = (
-        'nombre',
-        'descripcion',
-    )
-
-    ordering = (
-        'nombre',
-    )
+    list_display = ("nombre", "activo")
+    list_filter = ("activo",)
+    search_fields = ("nombre", "descripcion")
+    ordering = ("nombre",)
 
 
 @admin.register(Gasto)
 class GastoAdmin(AuditableAdmin):
     list_display = (
-        'concepto',
-        'categoria',
-        'proveedor',
-        'monto',
-        'metodo_pago',
-        'fecha_gasto',
+        "concepto",
+        "categoria",
+        "proyecto",
+        "cotizacion",
+        "proveedor",
+        "monto",
+        "iva",
+        "metodo_pago",
+        "fecha_gasto",
     )
-
     list_filter = (
-        'categoria',
-        'metodo_pago',
-        'fecha_gasto',
+        "categoria",
+        "proyecto",
+        "metodo_pago",
+        "fecha_gasto",
     )
-
     search_fields = (
-        'concepto',
-        'proveedor',
-        'categoria__nombre',
-        'notas',
+        "concepto",
+        "proveedor",
+        "categoria__nombre",
+        "proyecto__nombre",
+        "cotizacion__codigo",
+        "notas",
     )
-
-    ordering = (
-        '-fecha_gasto',
-        '-fecha_creacion',
-    )
-
+    ordering = ("-fecha_gasto", "-fecha_creacion")
     fieldsets = (
         (
-            'Información del gasto',
+            "Información del gasto",
             {
-                'fields': (
-                    'categoria',
-                    'concepto',
-                    'proveedor',
-                    'monto',
-                    'metodo_pago',
-                    'comprobante',
-                    'notas',
-                    'fecha_gasto',
-                )
+                "fields": (
+                    "categoria",
+                    "proyecto",
+                    "cotizacion",
+                    "concepto",
+                    "proveedor",
+                    "monto",
+                    "iva",
+                    "metodo_pago",
+                    "comprobante",
+                    "notas",
+                    "fecha_gasto",
+                ),
             },
         ),
         (
-            'Auditoría',
+            "Auditoría",
             {
-                'classes': ('collapse',),
-                'fields': (
-                    'activo',
-                    'eliminado',
-                    'creado_por',
-                    'modificado_por',
-                    'fecha_creacion',
-                    'fecha_actualizacion',
+                "classes": ("collapse",),
+                "fields": (
+                    "activo",
+                    "eliminado",
+                    "creado_por",
+                    "modificado_por",
+                    "fecha_creacion",
+                    "fecha_actualizacion",
                 ),
             },
         ),

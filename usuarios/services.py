@@ -134,19 +134,14 @@ def obtener_ruta_objeto(instance):
     if etiqueta == "cobranza.pago":
         return "/cobros"
 
+    if etiqueta == "cobranza.facturadocumento":
+        return f"/cotizaciones/{instance.cotizacion_id}"
+
     if etiqueta in {"contabilidad.gasto", "contabilidad.categoriagasto"}:
         return "/libro"
 
     if etiqueta == "evidencias.evidencia":
-        cotizacion = getattr(instance, "cotizacion", None)
-        proyecto_id = None
-
-        if cotizacion is not None:
-            try:
-                proyecto_id = cotizacion.proyecto.pk
-            except Exception:
-                proyecto_id = None
-
+        proyecto_id = getattr(instance, "proyecto_id", None)
         if proyecto_id:
             return f"/proyectos/{proyecto_id}"
 

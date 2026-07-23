@@ -89,10 +89,9 @@ class BusquedaGlobalView(APIView):
             )
             .order_by("nombre_solicitante", "empresa")[:limite]
         )
-
         cotizaciones_qs = (
             Cotizacion.objects
-            .select_related("cliente")
+            .select_related("cliente", "proyecto")
             .filter(activo=True)
             .filter(
                 Q(codigo__icontains=query)
@@ -100,19 +99,17 @@ class BusquedaGlobalView(APIView):
                 | Q(estimado_tiempo__icontains=query)
                 | Q(cliente__nombre_solicitante__icontains=query)
                 | Q(cliente__empresa__icontains=query)
+                | Q(proyecto__nombre__icontains=query)
                 | Q(conceptos__descripcion__icontains=query)
+                | Q(facturas__folio__icontains=query)
             )
             .distinct()
             .order_by("-fecha_actualizacion")[:limite]
         )
-
         proyectos_qs = (
             Proyecto.objects
-            .select_related(
-                "cotizacion",
-                "cotizacion__cliente",
-                "responsable",
-            )
+            .select_related("cliente", "responsable")
+            .prefetch_related("cotizaciones")
             .filter(activo=True)
             .filter(
                 Q(nombre__icontains=query)
@@ -121,11 +118,11 @@ class BusquedaGlobalView(APIView):
                 | Q(responsable__username__icontains=query)
                 | Q(responsable__first_name__icontains=query)
                 | Q(responsable__last_name__icontains=query)
-                | Q(cotizacion__codigo__icontains=query)
-                | Q(cotizacion__descripcion__icontains=query)
-                | Q(cotizacion__cliente__nombre_solicitante__icontains=query)
-                | Q(cotizacion__cliente__empresa__icontains=query)
-                | Q(cotizacion__conceptos__descripcion__icontains=query)
+                | Q(cliente__nombre_solicitante__icontains=query)
+                | Q(cliente__empresa__icontains=query)
+                | Q(cotizaciones__codigo__icontains=query)
+                | Q(cotizaciones__descripcion__icontains=query)
+                | Q(cotizaciones__conceptos__descripcion__icontains=query)
             )
             .distinct()
             .order_by("-fecha_actualizacion")[:limite]
@@ -149,7 +146,6 @@ class BusquedaGlobalView(APIView):
             }
             for cliente in clientes_qs
         ]
-
         cotizaciones = [
             {
                 "id": cotizacion.id,
@@ -159,7 +155,7 @@ class BusquedaGlobalView(APIView):
                     part
                     for part in [
                         cotizacion.cliente.nombre_solicitante,
-                        cotizacion.cliente.empresa,
+                        cotizacion.proyecto.nombre if cotizacion.proyecto else "",
                     ]
                     if part
                 ),
@@ -169,28 +165,36 @@ class BusquedaGlobalView(APIView):
             }
             for cotizacion in cotizaciones_qs
         ]
-
-        proyectos = [
-            {
-                "id": proyecto.id,
-                "tipo": "PROYECTO",
-                "titulo": proyecto.nombre,
-                "subtitulo": " · ".join(
-                    part
-                    for part in [
-                        proyecto.cotizacion.codigo,
-                        proyecto.cotizacion.cliente.nombre_solicitante,
-                    ]
-                    if part
-                ),
-                "descripcion": _texto_corto(
-                    proyecto.notas or proyecto.cotizacion.descripcion,
-                ),
-                "estado": proyecto.estado,
-                "ruta": f"/proyectos/{proyecto.id}",
-            }
-            for proyecto in proyectos_qs
-        ]
+        proyectos = []
+        for proyecto in proyectos_qs:
+            cotizaciones_proyecto = list(proyecto.cotizaciones.all())
+            codigos = ", ".join(
+                cotizacion.codigo
+                for cotizacion in cotizaciones_proyecto[:2]
+            )
+            descripcion_base = proyecto.notas or (
+                cotizaciones_proyecto[0].descripcion
+                if cotizaciones_proyecto
+                else "Proyecto sin cotizaciones vinculadas"
+            )
+            proyectos.append(
+                {
+                    "id": proyecto.id,
+                    "tipo": "PROYECTO",
+                    "titulo": proyecto.nombre,
+                    "subtitulo": " · ".join(
+                        part
+                        for part in [
+                            proyecto.cliente.nombre_solicitante,
+                            codigos,
+                        ]
+                        if part
+                    ),
+                    "descripcion": _texto_corto(descripcion_base),
+                    "estado": proyecto.estado,
+                    "ruta": f"/proyectos/{proyecto.id}",
+                },
+            )
 
         usuarios = []
         perfil_actor = request.user.perfilusuario
@@ -201,10 +205,7 @@ class BusquedaGlobalView(APIView):
             usuarios_qs = (
                 User.objects
                 .select_related("perfilusuario")
-                .filter(
-                    is_active=True,
-                    perfilusuario__activo=True,
-                )
+                .filter(is_active=True, perfilusuario__activo=True)
                 .filter(
                     Q(username__icontains=query)
                     | Q(first_name__icontains=query)
@@ -214,7 +215,6 @@ class BusquedaGlobalView(APIView):
                 )
                 .order_by("first_name", "last_name", "username")[:limite]
             )
-
             usuarios = [
                 {
                     "id": usuario.id,
@@ -238,14 +238,8 @@ class BusquedaGlobalView(APIView):
         }
         data["total"] = sum(
             len(data[key])
-            for key in [
-                "clientes",
-                "cotizaciones",
-                "proyectos",
-                "usuarios",
-            ]
+            for key in ["clientes", "cotizaciones", "proyectos", "usuarios"]
         )
-
         serializer = BusquedaGlobalSerializer(data=data)
         serializer.is_valid(raise_exception=True)
         return Response(serializer.validated_data)

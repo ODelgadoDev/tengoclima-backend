@@ -1,6 +1,9 @@
+from decimal import Decimal
+
 from django.db import transaction
 from django.db.models import Count
 from rest_framework import status, viewsets
+from rest_framework.exceptions import ValidationError
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -20,8 +23,8 @@ from .serializers import (
 class CotizacionViewSet(BaseModelViewSet):
     queryset = (
         Cotizacion.objects
-        .select_related("cliente")
-        .prefetch_related("conceptos", "pagos")
+        .select_related("cliente", "proyecto")
+        .prefetch_related("conceptos", "pagos", "facturas")
         .order_by("-fecha_creacion")
     )
     serializer_class = CotizacionSerializer
@@ -39,7 +42,7 @@ class CotizacionViewSet(BaseModelViewSet):
         "cliente__empresa",
         "conceptos__descripcion",
     ]
-    filterset_fields = ["estado", "tipo", "cliente"]
+    filterset_fields = ["estado", "tipo", "cliente", "proyecto"]
     ordering_fields = [
         "codigo",
         "subtotal",
@@ -49,6 +52,46 @@ class CotizacionViewSet(BaseModelViewSet):
         "fecha_creacion",
         "fecha_actualizacion",
     ]
+
+    def get_queryset(self):
+        queryset = (
+            super().get_queryset()
+            .select_related("cliente", "proyecto")
+            .prefetch_related("conceptos", "pagos", "facturas")
+        )
+        sin_proyecto = self.request.query_params.get("sin_proyecto", "")
+        if sin_proyecto.lower() in {"1", "true", "si", "sí"}:
+            queryset = queryset.filter(proyecto__isnull=True)
+        return queryset
+
+    def perform_destroy(self, instance):
+        if instance.proyecto_id is not None:
+            raise ValidationError(
+                {
+                    "cotizacion": (
+                        "No puedes eliminar una cotización vinculada a un "
+                        "proyecto. Retírala primero desde el proyecto."
+                    ),
+                },
+            )
+        if instance.pagos.model.all_objects.filter(cotizacion=instance).exists():
+            raise ValidationError(
+                {
+                    "cotizacion": (
+                        "No puedes eliminar una cotización con historial de pagos."
+                    ),
+                },
+            )
+        if instance.facturas.model.all_objects.filter(cotizacion=instance).exists():
+            raise ValidationError(
+                {
+                    "cotizacion": (
+                        "No puedes eliminar una cotización con facturas "
+                        "registradas. Conserva el historial financiero."
+                    ),
+                },
+            )
+        super().perform_destroy(instance)
 
     def _cambiar_estado(self, request, instance, nuevo_estado, mensaje):
         estado_anterior = instance.estado
@@ -85,17 +128,6 @@ class CotizacionViewSet(BaseModelViewSet):
     @transaction.atomic
     def autorizar(self, request, pk=None):
         instance = self.get_object()
-        if instance.estado == Cotizacion.ESTADO_CONVERTIDA:
-            return Response(
-                {
-                    "success": False,
-                    "message": (
-                        "La cotización ya está vinculada a un proyecto y no "
-                        "puede autorizarse manualmente."
-                    ),
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
         return self._cambiar_estado(
             request,
             instance,
@@ -107,13 +139,34 @@ class CotizacionViewSet(BaseModelViewSet):
     @transaction.atomic
     def cancelar(self, request, pk=None):
         instance = self.get_object()
-        if instance.estado == Cotizacion.ESTADO_CONVERTIDA:
+        if instance.proyecto_id is not None:
             return Response(
                 {
                     "success": False,
                     "message": (
                         "No se puede cancelar una cotización vinculada a un "
                         "proyecto. Primero debe retirarse del proyecto."
+                    ),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if instance.pagos.exists():
+            return Response(
+                {
+                    "success": False,
+                    "message": (
+                        "No se puede cancelar una cotización con pagos activos."
+                    ),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if instance.facturas.exclude(estado="CANCELADA").exists():
+            return Response(
+                {
+                    "success": False,
+                    "message": (
+                        "No se puede cancelar una cotización con facturas "
+                        "activas. Cancélalas primero."
                     ),
                 },
                 status=status.HTTP_400_BAD_REQUEST,
@@ -129,6 +182,17 @@ class CotizacionViewSet(BaseModelViewSet):
     @transaction.atomic
     def reabrir(self, request, pk=None):
         instance = self.get_object()
+        if instance.proyecto_id is not None:
+            return Response(
+                {
+                    "success": False,
+                    "message": (
+                        "No se puede reabrir una cotización vinculada a un "
+                        "proyecto. Primero debe retirarse del proyecto."
+                    ),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if instance.estado != Cotizacion.ESTADO_CANCELADA:
             return Response(
                 {
@@ -156,6 +220,32 @@ class ConceptoCotizacionViewSet(ActivityLoggingMixin, viewsets.ModelViewSet):
     search_fields = ["descripcion", "cotizacion__codigo", "catalogo__descripcion"]
     filterset_fields = ["cotizacion", "unidad", "catalogo"]
     ordering_fields = ["descripcion", "cantidad", "precio_unitario", "total"]
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        cotizacion = instance.cotizacion
+        subtotal_restante = sum(
+            (
+                concepto.total
+                for concepto in cotizacion.conceptos.exclude(pk=instance.pk)
+            ),
+            Decimal("0.00"),
+        )
+        total_restante = subtotal_restante * Decimal("1.16")
+        comprometido = max(
+            cotizacion.total_pagado,
+            cotizacion.total_facturado,
+        )
+        if total_restante < comprometido:
+            raise ValidationError(
+                {
+                    "concepto": (
+                        "No puedes eliminar este concepto porque el total "
+                        "quedaría por debajo de lo ya facturado o pagado."
+                    ),
+                },
+            )
+        return super().destroy(request, *args, **kwargs)
 
 
 class ConceptoCatalogoViewSet(BaseModelViewSet):

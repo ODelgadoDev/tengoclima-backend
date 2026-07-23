@@ -1,76 +1,78 @@
 from django.contrib import admin
 
-from .models import Proyecto
 from core.admin import AuditableAdmin
+
+from .models import Proyecto
 
 
 @admin.register(Proyecto)
 class ProyectoAdmin(AuditableAdmin):
     list_display = (
-        'nombre',
-        'cotizacion',
-        'responsable',
-        'estado',
-        'fecha_inicio',
-        'fecha_fin_estimada',
-        'fecha_fin_real',
+        "nombre",
+        "cliente",
+        "responsable",
+        "estado",
+        "cantidad_cotizaciones",
+        "estado_facturacion",
+        "estado_cobranza",
+        "fecha_inicio",
+        "fecha_fin_estimada",
+        "fecha_fin_real",
     )
-
     list_filter = (
-        'estado',
-        'fecha_inicio',
-        'fecha_fin_estimada',
+        "estado",
+        "fecha_inicio",
+        "fecha_fin_estimada",
     )
-
     search_fields = (
-        'nombre',
-        'cotizacion__codigo',
-        'cotizacion__cliente__nombre_solicitante',
-        'cotizacion__cliente__empresa',
-        'responsable__username',
-        'responsable__first_name',
-        'responsable__last_name',
+        "nombre",
+        "cliente__nombre_solicitante",
+        "cliente__empresa",
+        "cotizaciones__codigo",
+        "responsable__username",
+        "responsable__first_name",
+        "responsable__last_name",
     )
-
-    ordering = (
-        '-fecha_creacion',
-    )
-
+    ordering = ("-fecha_creacion",)
     fieldsets = (
         (
-            'Información del proyecto',
+            "Información del proyecto",
             {
-                'fields': (
-                    'cotizacion',
-                    'nombre',
-                    'responsable',
-                    'estado',
-                    'notas',
-                )
+                "fields": (
+                    "cliente",
+                    "nombre",
+                    "responsable",
+                    "estado",
+                    "notas",
+                ),
             },
         ),
         (
-            'Fechas',
+            "Fechas",
             {
-                'fields': (
-                    'fecha_inicio',
-                    'fecha_fin_estimada',
-                    'fecha_fin_real',
-                )
+                "fields": (
+                    "fecha_inicio",
+                    "fecha_fin_estimada",
+                    "fecha_fin_real",
+                ),
             },
         ),
         (
-            'Auditoría',
+            "Auditoría",
             {
-                'classes': ('collapse',),
-                'fields': (
-                    'activo',
-                    'eliminado',
-                    'creado_por',
-                    'modificado_por',
-                    'fecha_creacion',
-                    'fecha_actualizacion',
+                "classes": ("collapse",),
+                "fields": (
+                    "activo",
+                    "eliminado",
+                    "creado_por",
+                    "modificado_por",
+                    "fecha_creacion",
+                    "fecha_actualizacion",
                 ),
             },
         ),
     )
+
+    @admin.display(description="Cotizaciones")
+    def cantidad_cotizaciones(self, obj):
+        return obj.cotizaciones.count()

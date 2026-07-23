@@ -1,9 +1,10 @@
 from django.apps import AppConfig
 
 
-class EvidenciasConfig(AppConfig):
+class NotificacionesConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
-    name = "evidencias"
+    name = "notificaciones"
+    verbose_name = "Notificaciones"
 
     def ready(self):
         from . import signals  # noqa: F401

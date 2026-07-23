@@ -28,14 +28,11 @@ class Cotizacion(AuditableModel):
     ESTADO_PENDIENTE = "PENDIENTE"
     ESTADO_AUTORIZADA = "AUTORIZADA"
     ESTADO_CANCELADA = "CANCELADA"
-    # Estado transitorio mientras se migra a proyectos con varias cotizaciones.
-    ESTADO_CONVERTIDA = "CONVERTIDA"
 
     ESTADOS = [
         (ESTADO_PENDIENTE, "Pendiente"),
         (ESTADO_AUTORIZADA, "Autorizada"),
         (ESTADO_CANCELADA, "Cancelada"),
-        (ESTADO_CONVERTIDA, "Vinculada a proyecto"),
     ]
 
     TIPO_LOCAL = "LOCAL"
@@ -50,6 +47,13 @@ class Cotizacion(AuditableModel):
         ClientePotencial,
         on_delete=models.CASCADE,
         related_name="cotizaciones",
+    )
+    proyecto = models.ForeignKey(
+        "proyectos.Proyecto",
+        on_delete=models.SET_NULL,
+        related_name="cotizaciones",
+        null=True,
+        blank=True,
     )
     codigo = models.CharField(max_length=30, unique=True)
     descripcion = models.TextField()
@@ -78,6 +82,40 @@ class Cotizacion(AuditableModel):
         self.iva = subtotal * Decimal("0.16")
         self.total = self.subtotal + self.iva
         self.save(update_fields=["subtotal", "iva", "total", "fecha_actualizacion"])
+
+    @property
+    def facturas_activas(self):
+        return [
+            factura
+            for factura in self.facturas.all()
+            if factura.estado != "CANCELADA"
+        ]
+
+    @property
+    def facturas_count(self):
+        return len(self.facturas_activas)
+
+    @property
+    def total_facturado(self):
+        return sum(
+            (factura.importe for factura in self.facturas_activas),
+            Decimal("0.00"),
+        )
+
+    @property
+    def saldo_por_facturar(self):
+        return max(
+            self.total - self.total_facturado,
+            Decimal("0.00"),
+        )
+
+    @property
+    def estado_facturacion(self):
+        if self.total_facturado <= 0:
+            return "SIN_FACTURA"
+        if self.total_facturado < self.total:
+            return "FACTURADA_PARCIAL"
+        return "FACTURADA"
 
     @property
     def total_pagado(self):

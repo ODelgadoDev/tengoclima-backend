@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from rest_framework import serializers
 
 from core.serializers import AuditoriaSerializerMixin
@@ -145,6 +147,50 @@ class ConceptoCotizacionSerializer(serializers.ModelSerializer):
                 {"precio_unitario": "El precio unitario no puede ser negativo."},
             )
 
+        cotizacion = attrs.get(
+            "cotizacion",
+            getattr(self.instance, "cotizacion", None),
+        )
+        if (
+            self.instance is not None
+            and "cotizacion" in attrs
+            and cotizacion.pk != self.instance.cotizacion_id
+        ):
+            raise serializers.ValidationError(
+                {
+                    "cotizacion": (
+                        "La cotización de un concepto no puede cambiarse."
+                    ),
+                },
+            )
+
+        cantidad = attrs.get(
+            "cantidad",
+            getattr(self.instance, "cantidad", None),
+        )
+        if cotizacion is not None and cantidad is not None and precio is not None:
+            otros = cotizacion.conceptos.all()
+            if self.instance is not None:
+                otros = otros.exclude(pk=self.instance.pk)
+            subtotal_estimado = sum(
+                (concepto.total for concepto in otros),
+                Decimal("0.00"),
+            ) + (cantidad * precio)
+            total_estimado = subtotal_estimado * Decimal("1.16")
+            comprometido = max(
+                cotizacion.total_pagado,
+                cotizacion.total_facturado,
+            )
+            if total_estimado < comprometido:
+                raise serializers.ValidationError(
+                    {
+                        "concepto": (
+                            "El cambio reduciría el total de la cotización "
+                            "por debajo de lo ya facturado o pagado."
+                        ),
+                    },
+                )
+
         attrs["descripcion"] = str(descripcion).strip()
         return attrs
 
@@ -170,6 +216,29 @@ class CotizacionSerializer(serializers.ModelSerializer):
         read_only=True,
     )
     estado_cobranza = serializers.CharField(read_only=True)
+    facturas_count = serializers.IntegerField(read_only=True)
+    total_facturado = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        read_only=True,
+    )
+    saldo_por_facturar = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        read_only=True,
+    )
+    estado_facturacion = serializers.CharField(read_only=True)
+    proyecto = serializers.PrimaryKeyRelatedField(read_only=True)
+    proyecto_nombre = serializers.CharField(
+        source="proyecto.nombre",
+        read_only=True,
+        allow_null=True,
+    )
+    proyecto_eliminado = serializers.BooleanField(
+        source="proyecto.eliminado",
+        read_only=True,
+        allow_null=True,
+    )
 
     class Meta:
         model = Cotizacion
@@ -179,6 +248,9 @@ class CotizacionSerializer(serializers.ModelSerializer):
             "cliente",
             "cliente_nombre",
             "cliente_empresa",
+            "proyecto",
+            "proyecto_nombre",
+            "proyecto_eliminado",
             "descripcion",
             "tipo",
             "estimado_tiempo",
@@ -188,6 +260,10 @@ class CotizacionSerializer(serializers.ModelSerializer):
             "total_pagado",
             "saldo_pendiente",
             "estado_cobranza",
+            "facturas_count",
+            "total_facturado",
+            "saldo_por_facturar",
+            "estado_facturacion",
             "estado",
             "fecha_creacion",
             "fecha_actualizacion",
@@ -197,17 +273,48 @@ class CotizacionSerializer(serializers.ModelSerializer):
             "id",
             "cliente_nombre",
             "cliente_empresa",
+            "proyecto",
+            "proyecto_nombre",
+            "proyecto_eliminado",
             "subtotal",
             "iva",
             "total",
             "total_pagado",
             "saldo_pendiente",
             "estado_cobranza",
+            "facturas_count",
+            "total_facturado",
+            "saldo_por_facturar",
+            "estado_facturacion",
             "estado",
             "fecha_creacion",
             "fecha_actualizacion",
             "conceptos",
         ]
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        cliente = attrs.get(
+            "cliente",
+            getattr(self.instance, "cliente", None),
+        )
+
+        if (
+            self.instance is not None
+            and self.instance.proyecto_id is not None
+            and cliente is not None
+            and cliente.pk != self.instance.cliente_id
+        ):
+            raise serializers.ValidationError(
+                {
+                    "cliente": (
+                        "No puedes cambiar el cliente de una cotización "
+                        "vinculada a un proyecto."
+                    ),
+                },
+            )
+
+        return attrs
 
     def validate_codigo(self, value):
         value = value.strip().upper()

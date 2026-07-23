@@ -1,39 +1,78 @@
-# Contratos añadidos
+# Contratos API — Libro contable
 
-## Catálogo
+## GET `/api/contabilidad/libro/`
 
-```text
-GET    /api/cotizaciones/catalogo-conceptos/
-GET    /api/cotizaciones/catalogo-conceptos/{id}/
-POST   /api/cotizaciones/catalogo-conceptos/
-PATCH  /api/cotizaciones/catalogo-conceptos/{id}/
-DELETE /api/cotizaciones/catalogo-conceptos/{id}/
-GET    /api/cotizaciones/catalogo-conceptos/eliminados/
-POST   /api/cotizaciones/catalogo-conceptos/{id}/restaurar/
-```
-
-Campos:
+Respuesta paginada:
 
 ```json
 {
-  "id": 1,
-  "descripcion": "Instalación de equipo",
-  "unidad": "SERV",
-  "precio_unitario": "1500.00",
-  "usos": 3,
-  "activo": true,
-  "fecha_creacion": "...",
-  "fecha_actualizacion": "..."
+  "count": 2,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": "INGRESO-1",
+      "registro_id": 1,
+      "tipo": "INGRESO",
+      "fecha": "2026-07-20",
+      "concepto": "Pago de COT-0001",
+      "categoria_id": null,
+      "categoria_nombre": "Ingreso por cobranza",
+      "cliente_id": 1,
+      "cliente_nombre": "Empresa",
+      "proyecto_id": 1,
+      "proyecto_nombre": "Proyecto",
+      "cotizacion_id": 1,
+      "cotizacion_codigo": "COT-0001",
+      "factura_id": 1,
+      "factura_folio": "FAC-001",
+      "metodo_pago": "TRANSFERENCIA",
+      "referencia": "SPEI-001",
+      "proveedor": null,
+      "subtotal": "500.00",
+      "iva": "80.00",
+      "monto": "580.00",
+      "comprobante": null,
+      "notas": null,
+      "creado_por": "Administrador"
+    }
+  ],
+  "resumen": {
+    "ingresos": "580.00",
+    "gastos": "232.00",
+    "utilidad": "348.00",
+    "iva_ingresos": "80.00",
+    "iva_gastos": "32.00",
+    "iva_neto": "48.00",
+    "movimientos": 2,
+    "ingresos_count": 1,
+    "gastos_count": 1
+  }
 }
 ```
 
-## Estados comerciales
+## GET `/api/contabilidad/libro/resumen/`
 
-```text
-PENDIENTE
-AUTORIZADA
-CANCELADA
-CONVERTIDA (temporal, administrado por Proyectos)
+Devuelve únicamente los totales con los mismos filtros.
+
+## GET `/api/contabilidad/libro/exportar-excel/`
+
+Descarga un archivo `.xlsx` con seis hojas.
+
+## GET `/api/contabilidad/libro/exportar-csv/`
+
+Descarga todos los movimientos filtrados en UTF-8.
+
+## Cambios en gastos
+
+Los gastos ahora aceptan opcionalmente:
+
+```json
+{
+  "proyecto": 1,
+  "cotizacion": 2,
+  "iva": "160.00"
+}
 ```
 
-El campo `estado` queda de solo lectura en el serializer de Cotización. Debe modificarse mediante las acciones dedicadas.
+`monto` representa el total y `iva` la parte de IVA incluida dentro del total.

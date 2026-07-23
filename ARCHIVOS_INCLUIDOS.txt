@@ -1,0 +1,14 @@
+contabilidad/models.py
+contabilidad/serializers.py
+contabilidad/services.py
+contabilidad/reportes.py
+contabilidad/views.py
+contabilidad/urls.py
+contabilidad/admin.py
+contabilidad/tests.py
+contabilidad/migrations/0003_gasto_relaciones_e_iva.py
+requirements.txt
+INSTRUCCIONES.txt
+CONTRATOS_API.md
+PRUEBAS_SWAGGER.md
+ARCHIVOS_INCLUIDOS.txt

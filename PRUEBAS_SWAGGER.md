@@ -1,83 +1,40 @@
-# Pruebas Swagger — paquete 07A
+# Pruebas Swagger — Paquete 12A
 
-## 1. Clientes sin estado
+## 1. Registrar gasto relacionado
 
-```http
-POST /api/clientes/clientes/
-```
+`POST /api/contabilidad/gastos/`
 
 ```json
 {
-  "nombre_solicitante": "Cliente V2",
-  "empresa": "Empresa de prueba",
-  "telefono": "6140000000",
-  "direccion": "Chihuahua",
-  "descripcion": "Cliente sin proceso de autorización"
-}
-```
-
-Esperado: `201` y la respuesta no contiene `estado`.
-
-## 2. Crear concepto de catálogo
-
-```http
-POST /api/cotizaciones/catalogo-conceptos/
-```
-
-```json
-{
-  "descripcion": "Instalación de equipos por lote",
-  "unidad": "LOTE",
-  "precio_unitario": "2500.00"
-}
-```
-
-Esperado: `201`.
-
-## 3. Usar catálogo en una cotización
-
-```http
-POST /api/cotizaciones/conceptos-cotizacion/
-```
-
-```json
-{
+  "categoria": 1,
+  "proyecto": 1,
   "cotizacion": 1,
-  "catalogo": 1,
-  "cantidad": "2.00"
+  "concepto": "Material para instalación",
+  "proveedor": "Proveedor local",
+  "monto": "1160.00",
+  "iva": "160.00",
+  "metodo_pago": "TRANSFERENCIA",
+  "fecha_gasto": "2026-07-22",
+  "notas": "Gasto relacionado con el proyecto"
 }
 ```
 
-Esperado: `201`; descripción, unidad y precio se copian del catálogo. Total esperado: `5000.00`.
+## 2. Consultar libro
 
-## 4. Autorizar
+`GET /api/contabilidad/libro/?fecha_desde=2026-07-01&fecha_hasta=2026-07-31&page_size=100`
 
-```http
-POST /api/cotizaciones/cotizaciones/1/autorizar/
-```
+## 3. Consultar solo gastos de un proyecto
 
-Esperado: `200`, estado `AUTORIZADA`.
+`GET /api/contabilidad/libro/?tipo=GASTO&proyecto=1&page_size=100`
 
-## 5. Cancelar
+## 4. Resumen
 
-```http
-POST /api/cotizaciones/cotizaciones/1/cancelar/
-```
+`GET /api/contabilidad/libro/resumen/?fecha_desde=2026-07-01&fecha_hasta=2026-07-31`
 
-Esperado: `200`, estado `CANCELADA`.
+## 5. Excel
 
-## 6. Reabrir
+`GET /api/contabilidad/libro/exportar-excel/?fecha_desde=2026-07-01&fecha_hasta=2026-07-31`
 
-```http
-POST /api/cotizaciones/cotizaciones/1/reabrir/
-```
+## 6. CSV
 
-Esperado: `200`, estado `PENDIENTE`.
-
-## 7. Dashboard
-
-```http
-GET /api/dashboard/resumen/
-```
-
-Debe incluir `cotizaciones_canceladas` en lugar de `cotizaciones_rechazadas`.
+`GET /api/contabilidad/libro/exportar-csv/?fecha_desde=2026-07-01&fecha_hasta=2026-07-31`

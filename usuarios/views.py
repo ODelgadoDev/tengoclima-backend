@@ -1,4 +1,10 @@
 from django.contrib.auth.models import User
+
+from notificaciones.services import (
+    notificar_usuario_activado,
+    notificar_usuario_creado,
+    notificar_usuario_desactivado,
+)
 from django.db import transaction
 from rest_framework import filters, mixins, status, viewsets
 from rest_framework.decorators import action
@@ -212,6 +218,7 @@ class UsuarioAdministracionViewSet(viewsets.ModelViewSet):
             ruta="/usuarios",
             request=request,
         )
+        notificar_usuario_creado(usuario, actor=request.user)
 
         output = self.get_serializer(usuario)
         headers = self.get_success_headers(output.data)
@@ -327,6 +334,7 @@ class UsuarioAdministracionViewSet(viewsets.ModelViewSet):
             ruta="/usuarios",
             request=request,
         )
+        notificar_usuario_desactivado(usuario, actor=request.user)
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -366,6 +374,7 @@ class UsuarioAdministracionViewSet(viewsets.ModelViewSet):
             ruta="/usuarios",
             request=request,
         )
+        notificar_usuario_activado(usuario, actor=request.user)
 
         return Response(self.get_serializer(usuario).data)
 
